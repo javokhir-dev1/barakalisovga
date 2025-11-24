@@ -3,12 +3,12 @@ import axios from 'axios'
 import dotenv from 'dotenv';
 dotenv.config()
 
-export async function allApi(videourl) {
+export async function youtubeInfo(videourl) {
     try {
         const params = {
-            "url": videourl
+            "url": videourl,
         }
-        const url = 'https://saverapi.net/api/all-in-one-downloader-api'
+        const url = 'https://saverapi.net/api/youtube-info'
         const headers = {
             'x-api-key': process.env.API_TOKEN,
             'Content-Type': 'application/json'

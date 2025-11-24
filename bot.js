@@ -4,7 +4,11 @@ import dotenv from "dotenv"
 
 dotenv.config()
 
-export const bot = new Telegraf(process.env.BOT_TOKEN)
+export const bot = new Telegraf(process.env.BOT_TOKEN, {
+    telegram: {
+        apiRoot: process.env.BOT_API_ROOT
+    }
+})
 
 async function startbot() {
     try {
