@@ -14,39 +14,15 @@ import dotenv from "dotenv"
 import https from 'https'
 import sharp from 'sharp'
 
+import ffmpeg from 'fluent-ffmpeg'
+import path from 'path'
+
 dotenv.config()
 
 export const session = {}
 
 import fs from "fs";
 import { Markup } from "telegraf"
-
-async function downloadVideo(url, output) {
-    const res = await fetch(url);
-
-    if (!res.ok) throw new Error("Download failed: " + res.status);
-
-    const fileStream = fs.createWriteStream(output);
-
-    await new Promise((resolve, reject) => {
-        res.body.pipeTo(
-            new WritableStream({
-                write(chunk) {
-                    fileStream.write(chunk);
-                },
-                close() {
-                    fileStream.end();
-                    resolve();
-                },
-                abort(err) {
-                    reject(err);
-                }
-            })
-        );
-    });
-
-    console.log("Download finished:", output);
-}
 
 async function checkVideoAvailability(url) {
     try {
@@ -120,6 +96,7 @@ bot.on("message", async (ctx) => {
             const hard_youtube = /^(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:watch\?v=|shorts\/)|youtu\.be\/)([A-Za-z0-9_-]{11})(?:[?&].*)?$/;
             if (hard_youtube.test(message)) {
                 try {
+                    const loading1 = await ctx.reply("🤔")
                     const data = await youtubeInfo(message)
 
                     console.log(data)
@@ -146,6 +123,7 @@ bot.on("message", async (ctx) => {
                             ]).reply_markup
                         }
                     )
+                    ctx.deleteMessage(loading1.message_id)
                 } catch (err) {
                     console.log(err)
                 }
@@ -153,12 +131,18 @@ bot.on("message", async (ctx) => {
                 ctx.reply("Youtube video URL no'to'g'ri!, To'g'ri URL yuboring!")
             }
         } else if (instagram.test(message) || facebook.test(message) || twitter.test(message) || tiktok.test(message)) {
-            const loading = await ctx.reply("⏳")
+            const loading1 = await ctx.reply("🤔")
             const data = await allApi(message)
 
             const checkResult = await checkVideoAvailability(data.download_url)
 
             if (checkResult.exists) {
+                try {
+                    await ctx.deleteMessage(loading1.message_id)
+                } catch (err) {
+                    console.log(err)
+                }
+                const loading2 = await ctx.reply("⏳ Yuklanmoqda...")
                 try {
 
                     await ctx.replyWithVideo(
@@ -166,13 +150,13 @@ bot.on("message", async (ctx) => {
                         { caption: data.caption.split("\n")[0] + "\n\n📥 @barakalisovgalarbot orqali yuklandi! " }
                     );
 
-                    await ctx.deleteMessage(loading.message_id)
+                    await ctx.deleteMessage(loading2.message_id)
                 } catch (err) {
                     console.log(err)
                 }
             } else {
                 await ctx.reply("Video topilmadi!, Qayta urinib ko'ring!")
-                ctx.deleteMessage(loading.message_id)
+                ctx.deleteMessage(loading1.message_id)
             }
         } else if (other.test(message)) {
             await ctx.reply(`🚀 Bot faqat quyidagi platformalardan videolarni yuklay oladi:
@@ -237,6 +221,57 @@ async function createThumbnail(inputPath, outputPath) {
         .toFile(outputPath);
 }
 
+function extractAudio(videoPath, audioPath) {
+    return new Promise((resolve, reject) => {
+        ffmpeg(videoPath)
+            .noVideo()
+            .audioCodec('libmp3lame')
+            .format('mp3')
+            .on('start', commandLine => {
+                console.log('FFmpeg command:', commandLine);
+            })
+            .on('progress', progress => {
+                console.log('Progress:', progress.percent ? progress.percent.toFixed(2) + '%' : '0%');
+            })
+            .on('end', () => {
+                console.log('Audio ajratildi:', audioPath);
+                resolve();
+            })
+            .on('error', err => {
+                console.error('Xato:', err.message);
+                reject(err);
+            })
+            .save(audioPath);
+    });
+}
+
+
+async function downloadVideo(url, output) {
+    const res = await fetch(url);
+
+    if (!res.ok) throw new Error("Download failed: " + res.status);
+
+    const fileStream = fs.createWriteStream(output);
+
+    await new Promise((resolve, reject) => {
+        res.body.pipeTo(
+            new WritableStream({
+                write(chunk) {
+                    fileStream.write(chunk);
+                },
+                close() {
+                    fileStream.end();
+                    resolve();
+                },
+                abort(err) {
+                    reject(err);
+                }
+            })
+        );
+    });
+
+    console.log("Download finished:", output);
+}
 
 bot.action(/youtube_video_(.+)/, async (ctx) => {
     try {
@@ -246,7 +281,11 @@ bot.action(/youtube_video_(.+)/, async (ctx) => {
 
         console.log(data)
 
-        await ctx.editMessageCaption(data.title + "\n\n⏳ Yuklanmoqda...");
+        try {
+            await ctx.editMessageCaption(data.title + "\n\n⏳ Yuklanmoqda...");
+        } catch(err) {
+            console.log(err)
+        }
 
         const video = await youtubeApi(data.url)
 
@@ -257,8 +296,9 @@ bot.action(/youtube_video_(.+)/, async (ctx) => {
         if (checkResult.exists) {
             const photo_name = uuidv4()
             try {
+                if (!fs.existsSync('photos')) fs.mkdirSync('photos');
                 await downloadImage(data.thumbnail, `photos/${photo_name}.jpg`)
-                await createThumbnail(`photos/${photo_name}.jpg`,`photos/${photo_name}2.jpg` );
+                await createThumbnail(`photos/${photo_name}.jpg`, `photos/${photo_name}2.jpg`);
                 await ctx.replyWithVideo(
                     {
                         url: video.url,
@@ -275,10 +315,63 @@ bot.action(/youtube_video_(.+)/, async (ctx) => {
                 console.log(err)
             } finally {
                 fs.unlinkSync(`photos/${photo_name}.jpg`);
-                fs.unlinkSync(`photos/${photo_name}2.jpg`); 
+                fs.unlinkSync(`photos/${photo_name}2.jpg`);
             }
         } else {
             await ctx.reply("Video yuklab bo'lmadi! Qayta urinib ko'ring!")
+        }
+    } catch (err) {
+        console.log(err)
+    }
+})
+
+bot.action(/youtube_audio_(.+)/, async (ctx) => {
+    try {
+        const file_name = uuidv4()
+        const video_id = ctx.match[1]
+
+       
+
+
+        if (!session[ctx.chat.id]) session[ctx.chat.id] = {}
+        const data = session[ctx.chat.id][video_id]
+
+        try {
+            await ctx.editMessageCaption(data.title + "\n\n⏳ Yuklanmoqda...");
+        } catch (err) {
+            console.log(err)
+        }
+
+        const video = await youtubeApi(data.url)
+
+        const checkResult = await checkVideoAvailability(video.url)
+        if (checkResult) {
+            try {
+                if (!fs.existsSync('audios')) fs.mkdirSync('audios');
+                await downloadVideo(video.url, `audios/${file_name}.mp4`)
+                await extractAudio(`audios/${file_name}.mp4`, `audios/${file_name}audio.mp3`)
+
+                await ctx.replyWithAudio(
+                    { source: `audios/${file_name}audio.mp3` },
+                    { caption: video.title + "\n\n📥 @barakalisovgalarbot orqali yuklandi!" }
+                )
+            } catch (err) {
+                console.log(err)
+            } finally {
+                try {
+                    await ctx.deleteMessage()
+                } catch(err) {
+                    console.log(err)
+                }
+                fs.unlink(`audios/${file_name}.mp4`, (err) => {
+                    if (err) console.error(err);
+                });
+                fs.unlink(`audios/${file_name}audio.mp3`, (err) => {
+                    if (err) console.error(err);
+                });
+            }
+        } else {
+            await ctx.reply("Audio topilmadi!, Qayta urinib ko'ring!")
         }
     } catch (err) {
         console.log(err)
