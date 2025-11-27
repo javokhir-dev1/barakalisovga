@@ -4,9 +4,22 @@ import dotenv from "dotenv"
 
 dotenv.config()
 
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('Tutilmagan Promis Rad Etildi (unhandledRejection):', reason);
+    process.exit(1);
+});
+
+process.on('uncaughtException', (err) => {
+    console.error('Tutilmagan xato (uncaughtException):', err);
+    process.exit(1);
+});
+
 export const bot = new Telegraf(process.env.BOT_TOKEN, {
     telegram: {
-        apiRoot: process.env.BOT_API_ROOT
+        apiRoot: process.env.BOT_API_ROOT,
+        client: {
+            timeout: 300000
+        }
     }
 })
 
