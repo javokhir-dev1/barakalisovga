@@ -198,7 +198,7 @@ bot.on("message", async (ctx) => {
 
             const photo_url = `${process.env.SERVER_IP}:${process.env.PORT || 3050}/photos/${photo_name}.jpg`
 
-            const photolab_data = photolab(photo_url, session[ctx.from.id]["photo_type"])
+            const photolab_data = await photolab(photo_url, session[ctx.from.id]["photo_type"])
 
             console.log(photolab_data)
         
