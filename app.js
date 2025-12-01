@@ -16,6 +16,7 @@ import { v4 as uuidv4 } from "uuid"
 import dotenv from "dotenv"
 
 import https from 'https'
+import http from "http"
 import sharp from 'sharp'
 
 import pTimeout from 'p-timeout';
@@ -31,6 +32,8 @@ import fs from "fs";
 import { Markup } from "telegraf"
 import { youtubeApiMusic } from "./downloaders/youtubemusic.js"
 import { where } from "sequelize"
+import c from "config"
+import { photolab } from "./downloaders/photolab.js"
 
 async function checkVideoAvailability(url) {
     try {
@@ -66,6 +69,21 @@ async function checkVideoAvailability(url) {
 }
 
 
+function downloadImage(url, path) {
+    return new Promise((resolve, reject) => {
+        https.get(url, (res) => {
+            const file = fs.createWriteStream(path);
+            res.pipe(file);
+            file.on('finish', () => {
+                file.close();
+                resolve(path);
+            });
+        }).on('error', (err) => {
+            reject(err);
+        });
+    });
+}
+
 bot.on("message", async (ctx, next) => {
     try {
         const isSubscribed = await handleSubscriptionCheck(ctx, bot)
@@ -90,6 +108,58 @@ bot.on("message", async (ctx, next) => {
     }
 })
 
+bot.hears("🖼 Multik Rasm", async (ctx) => {
+    try {
+        await ctx.replyWithMediaGroup([
+            {
+                type: 'photo',
+                media: "AgACAgIAAxUHaSwfrhLumIg9xPPiwVWnFO_kxyEAArIPaxseJ2FJ0vfxdqPwnqQBAAMCAAN5AAM2BA",
+            },
+            {
+                type: 'photo',
+                media: "AgACAgIAAxUHaSwfrlRyYtCrBJf4PhT6flGBa4UAArMPaxseJ2FJNpKOFO-8_qoBAAMCAAN5AAM2BA",
+            }
+        ])
+        await ctx.reply(
+            "Quyidagilardan birini tanlang:",
+            Markup.inlineKeyboard(
+                [
+                    Markup.button.callback("Disney", "disney_photo"),
+                    Markup.button.callback("Multik", "multik_photo")
+                ]
+            )
+        );
+
+    } catch (err) {
+        console.log(err)
+    }
+})
+
+bot.action("disney_photo", async (ctx) => {
+    try {
+        if (!session[ctx.from.id]) session[ctx.from.id] = {}
+        session[ctx.from.id]["state"] = "waiting_photo"
+        session[ctx.from.id]["photo_type"] = "disney"
+
+        await ctx.reply("Zo'r menga rasm yuboring!")
+    } catch (err) {
+        console.log(err)
+    }
+})
+
+bot.action("multik_photo", async (ctx) => {
+    try {
+        if (!session[ctx.from.id]) session[ctx.from.id] = {}
+        session[ctx.from.id]["state"] = "waiting_photo"
+        session[ctx.from.id]["photo_type"] = "multik"
+
+
+        await ctx.reply("Zo'r menga rasm yuboring!")
+    } catch (err) {
+        console.log(err)
+    }
+})
+
 function chunk(arr, size) {
     const res = [];
     for (let i = 0; i < arr.length; i += size) {
@@ -101,6 +171,39 @@ function chunk(arr, size) {
 bot.on("message", async (ctx) => {
     try {
         const message = ctx.message.text
+
+        if (!session[ctx.from.id]) session[ctx.from.id] = {}
+        if (session[ctx.from.id]["state"] == "waiting_photo") {
+            if (!ctx.message.photo) return ctx.reply("Iltimos, rasm yuboring!")
+
+            const photos = ctx.message.photo;
+
+            const fileId = photos[photos.length - 1].file_id;
+
+            
+            const data = await fetch(`https://api.telegram.org/bot${process.env.BOT_TOKEN}/getFile?file_id=${fileId}`)
+            const dataJson = await data.json()
+
+            const file_path = dataJson.result.file_path
+
+            if (!file_path) {
+                return ctx.reply("Rasm yuklab olib bo'lmadi qayta urinib koring")
+            }
+
+            const download_url = `https://api.telegram.org/file/bot${process.env.BOT_TOKEN}/${file_path}`
+
+            const photo_name = uuidv4()
+
+            await downloadImage(download_url, `./photos/${photo_name}.jpg`)
+
+            const photo_url = `${process.env.SERVER_IP}:${process.env.PORT || 3050}/photos/${photo_name}.jpg`
+
+            const photolab_data = photolab(photo_url, session[ctx.from.id]["photo_type"])
+
+            console.log(photolab_data)
+        
+            return ctx.reply(session[ctx.from.id]["photo_type"])
+        }
 
         const youtube = /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\//;
         const instagram = /^(https?:\/\/)?(www\.)?instagram\.com\/.+/;
@@ -204,7 +307,7 @@ bot.on("message", async (ctx) => {
                         });
                     }
                 } else {
-                    await ctx.reply("Video topilmadi!, Qayta urinib ko'ring!")     
+                    await ctx.reply("Video topilmadi!, Qayta urinib ko'ring!")
                 }
             }
             try {
@@ -212,7 +315,7 @@ bot.on("message", async (ctx) => {
             } catch (err) {
                 console.log(err)
             }
-            
+
         } else if (other.test(message)) {
             await ctx.reply(`🚀 Bot faqat quyidagi platformalardan videolarni yuklay oladi:
 
@@ -279,21 +382,6 @@ bot.action(/download_music_(.+)/, async (ctx) => {
         console.log(err)
     }
 })
-
-function downloadImage(url, path) {
-    return new Promise((resolve, reject) => {
-        https.get(url, (res) => {
-            const file = fs.createWriteStream(path);
-            res.pipe(file);
-            file.on('finish', () => {
-                file.close();
-                resolve(path);
-            });
-        }).on('error', (err) => {
-            reject(err);
-        });
-    });
-}
 
 async function createThumbnail(inputPath, outputPath) {
     await sharp(inputPath)
