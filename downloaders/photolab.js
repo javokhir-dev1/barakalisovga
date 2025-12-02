@@ -5,7 +5,7 @@ dotenv.config()
 
 export async function photolab(photoUrl, type) {
     try {
-        const typeId = "24302596"
+        let typeId = "24302596"
 
         if (type == "multik") {
             typeId = "23102965"

@@ -68,7 +68,6 @@ async function checkVideoAvailability(url) {
     }
 }
 
-
 function downloadImage(url, path) {
     return new Promise((resolve, reject) => {
         https.get(url, (res) => {
@@ -180,7 +179,7 @@ bot.on("message", async (ctx) => {
 
             const fileId = photos[photos.length - 1].file_id;
 
-            
+
             const data = await fetch(`https://api.telegram.org/bot${process.env.BOT_TOKEN}/getFile?file_id=${fileId}`)
             const dataJson = await data.json()
 
@@ -198,10 +197,21 @@ bot.on("message", async (ctx) => {
 
             const photo_url = `${process.env.SERVER_IP}:${process.env.PORT || 3050}/photos/${photo_name}.jpg`
 
+            console.log(photo_url)
+
             const photolab_data = await photolab(photo_url, session[ctx.from.id]["photo_type"])
 
+            await ctx.replyWithPhoto(
+                {
+                    url: photolab_data.download_url
+                },
+                {
+                    caption: "@barakalisovgalarbot orqali yaratildi"
+                }
+            )
+
             console.log(photolab_data)
-        
+
             return ctx.reply(session[ctx.from.id]["photo_type"])
         }
 
@@ -289,7 +299,6 @@ bot.on("message", async (ctx) => {
                                 }
                             }
                         )
-
                         await Video.create({ file_id: video_msg.video.file_id.trim(), title: data.caption.split("\n")[0].trim(), url: message.trim(), type: "video" })
                         try {
                             await ctx.deleteMessage(loading2.message_id)
