@@ -175,10 +175,11 @@ bot.on("message", async (ctx) => {
         if (session[ctx.from.id]["state"] == "waiting_photo") {
             if (!ctx.message.photo) return ctx.reply("Iltimos, rasm yuboring!")
 
+            const loading = await ctx.reply("🤔")
+
             const photos = ctx.message.photo;
 
             const fileId = photos[photos.length - 1].file_id;
-
 
             const data = await fetch(`https://api.telegram.org/bot${process.env.BOT_TOKEN}/getFile?file_id=${fileId}`)
             const dataJson = await data.json()
@@ -193,11 +194,17 @@ bot.on("message", async (ctx) => {
 
             const photo_name = uuidv4()
 
+            try {
+                await ctx.deleteMessage(loading.message_id)
+            } catch(err) {
+                console.log(err)
+            }
+
+            const loading2 = await ctx.reply("⌛️ Yaratilmoqda...")
+
             await downloadImage(download_url, `./photos/${photo_name}.jpg`)
 
             const photo_url = `${process.env.SERVER_IP}:${process.env.PORT || 3050}/photos/${photo_name}.jpg`
-
-            console.log(photo_url)
 
             const photolab_data = await photolab(photo_url, session[ctx.from.id]["photo_type"])
 
@@ -210,9 +217,14 @@ bot.on("message", async (ctx) => {
                 }
             )
 
-            console.log(photolab_data)
+            try {
+                await ctx.deleteMessage(loading2.message_id)
+            } catch(err) {
+                console.log(err)
+            }
 
-            return ctx.reply(session[ctx.from.id]["photo_type"])
+            session[ctx.from.id]["state"] = ""
+            return 
         }
 
         const youtube = /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\//;
