@@ -173,8 +173,11 @@ bot.on("message", async (ctx) => {
 
         if (!session[ctx.from.id]) session[ctx.from.id] = {}
         if (session[ctx.from.id]["state"] == "waiting_photo") {
-            if (!ctx.message.photo) return ctx.reply("Iltimos, rasm yuboring!")
-
+            if (!ctx.message.photo) {
+                ctx.reply("Rasm yaratish bekor qilindi!")
+                session[ctx.from.id]["state"] = ""
+                return
+            }
             const loading = await ctx.reply("🤔")
 
             const photos = ctx.message.photo;
@@ -379,13 +382,19 @@ bot.on("message", async (ctx) => {
 
 bot.action(/download_music_(.+)/, async (ctx) => {
     try {
-        await ctx.answerCbQuery("📥 Musiqa yuklanmoqda...")
+        const loading1 = await ctx.reply("🤔")
         const id = ctx.match[1]
         const url = `https://www.youtube.com/watch?v=${id}`;
-
+        
         const isMusicExists = await Music.findOne({ where: { url: url.trim() } })
-
+        try {
+            await ctx.deleteMessage(loading1.message_id)
+        } catch (err) {
+            console.log(err)
+        }
+        const loading2 = await ctx.reply("📥 Musiqa yuklanmoqda...")
         if (isMusicExists) {
+            
             await ctx.replyWithAudio(isMusicExists.file_id, {
                 caption: "📥 @barakalisovgalarbot orqali yuklandi! ",
             });
@@ -398,6 +407,12 @@ bot.action(/download_music_(.+)/, async (ctx) => {
             )
 
             await Music.create({ url: url.trim(), file_id: music_msg.audio.file_id.trim() })
+        }
+
+        try {
+            await ctx.deleteMessage(loading2.message_id)
+        } catch(err) {
+            console.log(err)
         }
     } catch (err) {
         console.log(err)
