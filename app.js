@@ -359,17 +359,21 @@ async function youtubeVideoDownloaderFunc(ctx, data) {
 
         await fastDownload(video.url, video_path)
 
+        const title = removeHashtags(data.title)
+
         const video_msg = await ctx.replyWithVideo(
             {
                 source: video_path,
             },
             {
-                caption: data.title + "\n\n📥 @barakalisovgalarbot orqali yuklandi!",
+                caption: title + "\n\n📥 @barakalisovgalarbot orqali yuklandi!",
                 thumbnail: {
                     source: `photos/${photo_name}.jpg`,
                 }
             }
         )
+        fsp.unlink(video_path)
+            .catch((err) => console.log(err))
         try {
             await Video.create({ file_id: video_msg.video.file_id.trim(), url: data.url.trim(), title: data.title, type: "video" })
         } catch (err) {
@@ -430,17 +434,7 @@ bot.action(/youtube_video_(.+)/, async (ctx) => {
 })
 
 async function youtubeAudioDownloaderFunc(ctx, data) {
-    const video = await youtubeApiMusic(data.url)
-
-    try {
-        const audio_msg = await ctx.replyWithAudio(
-            { url: video.url },
-            { caption: "📥 @barakalisovgalarbot orqali yuklandi!" }
-        )
-        await Video.create({ file_id: audio_msg.audio.file_id.trim(), url: data.url.trim(), title: data.title || "", type: "audio" })
-    } catch (err) {
-        console.log(err)
-    }
+   await musicDownloaderFunc(ctx, data.url)
 }
 
 bot.action(/youtube_audio_(.+)/, async (ctx) => {
