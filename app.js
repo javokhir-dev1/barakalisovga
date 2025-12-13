@@ -368,7 +368,7 @@ async function youtubeVideoDownloaderFunc(ctx, data) {
             {
                 caption: title + "\n\n📥 @barakalisovgalarbot orqali yuklandi!",
                 thumbnail: {
-                    source: `photos/${photo_name}.jpg`,
+                    source: `photos/${photo_name}2.jpg`,
                 }
             }
         )

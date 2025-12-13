@@ -23,6 +23,7 @@ const admins = process.env.ADMINS.split(",")
 
 import XLSX from "xlsx"
 import fs from "fs"
+import { checkOrCreateFolder } from "../functions/functions.js"
 
 bot.command("admin", async (ctx) => {
     try {
@@ -60,6 +61,8 @@ bot.action("random_users", async (ctx) => {
         const loading = await ctx.reply("Biroz kuting...")
         const randomUsers = await RandomUser.findAll()
 
+        await checkOrCreateFolder("document")
+
         const file_name = `./document/${uuidv4()}.xlsx`
 
         const result = []
@@ -71,7 +74,6 @@ bot.action("random_users", async (ctx) => {
 
             result.push(`${user_id} ${full_name} ${userLogs.length}`)
         }
-
         try {
             saveArrayToExcel(result, file_name)
             await ctx.sendDocument({ source: file_name })

@@ -1,31 +1,40 @@
-import axios from 'axios'
-
 import dotenv from 'dotenv';
-dotenv.config()
+dotenv.config();
 
 export async function photolab(photoUrl, type) {
     try {
-        let typeId = "24302596"
+        let typeId = "24302596";
 
-        if (type == "multik") {
-            typeId = "23102965"
+        if (type === "multik") {
+            typeId = "23102965";
         } else {
-            typeId = "27127455"
+            typeId = "27127455";
         }
 
-        const params = {
-            "id": typeId,
-            "photo": photoUrl
+        const params = new URLSearchParams({
+            id: typeId,
+            photo: photoUrl
+        });
+
+        const url = `https://saverapi.net/api/photolab-api?${params.toString()}`;
+
+        const response = await fetch(url, {
+            method: 'GET',
+            headers: {
+                'x-api-key': process.env.API_TOKEN,
+                'Content-Type': 'application/json'
+            }
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(JSON.stringify(errorData));
         }
-        const url = 'https://saverapi.net/api/photolab-api'
-        const headers = {
-            'x-api-key': process.env.API_TOKEN,
-            'Content-Type': 'application/json'
-        }
-        const response = await axios.get(url, { params, headers })
-        return response.data
+
+        const data = await response.json();
+        return data;
 
     } catch (error) {
-        console.error("Xatolik yuz berdi:", error.response ? error.response.data : error.message);
+        console.error("Xatolik yuz berdi:", error.message);
     }
 }

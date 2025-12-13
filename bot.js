@@ -46,7 +46,7 @@ const PORT = process.env.PORT || 3050
 async function startbot() {
     try {
         await sequelize.authenticate();
-        await sequelize.sync({ force: true })
+        await sequelize.sync({ alter: true })
         app.listen(process.env.PORT, () => {
             console.log(`Server started on ${process.env.SERVER_IP}:${PORT}`)
         })
