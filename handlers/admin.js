@@ -95,88 +95,88 @@ bot.action("random_users", async (ctx) => {
 
 // ==================================================
 
-const blockedUserIds = [];
-const activeUserIds = []
+// const blockedUserIds = [];
+// const activeUserIds = []
 
-async function blocked(telegramId) {
-    blockedUserIds.push(String(telegramId))
-}
+// async function blocked(telegramId) {
+//     blockedUserIds.push(String(telegramId))
+// }
 
-async function active(telegramId) {
-    activeUserIds.push(String(telegramId))
-}
+// async function active(telegramId) {
+//     activeUserIds.push(String(telegramId))
+// }
 
-let count = 0
+// let count = 0
 
-async function sendToUser(user) {
-    try {
-        await bot.telegram.sendMessage(user.user_id, "Salom, bu test xabari!")
-        await active(user.user_id)
-    } catch (err) {
+// async function sendToUser(user) {
+//     try {
+//         await bot.telegram.sendMessage(user.user_id, "Salom, bu test xabari!")
+//         await active(user.user_id)
+//     } catch (err) {
 
-        if (err.response && err.response.error_code === 429) {
-            const wait = err.response.parameters.retry_after || 60;
-            console.log(`Too Many Requests, ${wait}`);
-            await new Promise(r => setTimeout(r, wait * 1000))
-            return sendToUser(user);
-        } else {
-            console.log("Xatolik:", err.message);
-            await blocked(user.user_id);
-        }
-    }
+//         if (err.response && err.response.error_code === 429) {
+//             const wait = err.response.parameters.retry_after || 60;
+//             console.log(`Too Many Requests, ${wait}`);
+//             await new Promise(r => setTimeout(r, wait * 1000))
+//             return sendToUser(user);
+//         } else {
+//             console.log("Xatolik:", err.message);
+//             await blocked(user.user_id);
+//         }
+//     }
 
-    count++
-    console.log(count)
+//     count++
+//     console.log(count)
 
-    if (blockedUserIds.length > 100) {
-        await User.update(
-            { is_blocked: true },
-            { where: { user_id: blockedUserIds } }
-        );
-        blockedUserIds.length = 0
-    }
+//     if (blockedUserIds.length > 100) {
+//         await User.update(
+//             { is_blocked: true },
+//             { where: { user_id: blockedUserIds } }
+//         );
+//         blockedUserIds.length = 0
+//     }
 
-    if (activeUserIds.length > 100) {
-        await User.update(
-            { is_blocked: false },
-            { where: { user_id: activeUserIds } }
-        );
-        activeUserIds.length = 0
-    }
-}
+//     if (activeUserIds.length > 100) {
+//         await User.update(
+//             { is_blocked: false },
+//             { where: { user_id: activeUserIds } }
+//         );
+//         activeUserIds.length = 0
+//     }
+// }
 
-async function sendToAll(users) {
-    const jobs = users.map(user =>
-        limit(() => sendToUser(user))
-    );
+// async function sendToAll(users) {
+//     const jobs = users.map(user =>
+//         limit(() => sendToUser(user))
+//     );
 
-    await Promise.all(jobs);
-}
+//     await Promise.all(jobs);
+// }
 
-async function sendMessage(ctx) {
-    const users = await User.findAll({
-        attributes: ["user_id"],
-    });
+// async function sendMessage(ctx) {
+//     const users = await User.findAll({
+//         attributes: ["user_id"],
+//     });
 
-    const loading = await ctx.reply("Biroz kuting...");
+//     const loading = await ctx.reply("Biroz kuting...");
 
-    await sendToAll(users)
+//     await sendToAll(users)
 
-    await ctx.deleteMessage(loading.message_id)
+//     await ctx.deleteMessage(loading.message_id)
 
-    await ctx.reply("tugadi")
-}
+//     await ctx.reply("tugadi")
+// }
 
-bot.action("send_message", async (ctx) => {
-    try {
-        await ctx.reply("Zo'r menga har qanday bitta habar yuboring, video, audio, rasm yoki text!")
-        if (!session[ctx.from.id]) session[ctx.from.id] = {}
-        session[ctx.from.id]["state"] = "waiting_message_to_send"
+// bot.action("send_message", async (ctx) => {
+//     try {
+//         await ctx.reply("Zo'r menga har qanday bitta habar yuboring, video, audio, rasm yoki text!")
+//         if (!session[ctx.from.id]) session[ctx.from.id] = {}
+//         session[ctx.from.id]["state"] = "waiting_message_to_send"
 
-    } catch (err) {
-        console.log(err)
-    }
-})
+//     } catch (err) {
+//         console.log(err)
+//     }
+// })
 
 // ==================================================
 
