@@ -24,6 +24,7 @@ const admins = process.env.ADMINS.split(",")
 import XLSX from "xlsx"
 import fs from "fs"
 import { checkOrCreateFolder } from "../functions/functions.js"
+import { XitMusic } from "../models/xitmusics.model.js"
 
 bot.command("admin", async (ctx) => {
     try {
@@ -37,6 +38,8 @@ bot.command("admin", async (ctx) => {
                     [Markup.button.callback("📊 Statistics", "show_statistics")],
                     // [Markup.button.callback("📩 Habar yuborish", "send_message")],
                     [Markup.button.callback("📋 Userlar royxati", "random_users")],
+                    [Markup.button.callback("🎧 Xit musiqa qo'shish", "add_xit_music")],
+                    [Markup.button.callback("🎧 Barcha Xit musiqlar", "show_xit_musics")],
                 ])
             )
         }
@@ -44,6 +47,55 @@ bot.command("admin", async (ctx) => {
         console.log(err)
     }
 })
+
+// ==========================================
+
+bot.action("add_xit_music", async (ctx) => {
+    try {
+        await ctx.reply("Zo'r menga musiqani yuboring")
+        if (!session[ctx.from.id]) session[ctx.from.id] = {}
+        session[ctx.from.id]["state"] = "waiting_audio"
+    } catch (err) {
+        console.log(err)
+    }
+})
+
+bot.action("show_xit_musics", async (ctx) => {
+    try {
+        const musics = await XitMusic.findAll()
+        for (let i = 0; i < musics.length; i++) {
+            await ctx.replyWithAudio(musics[i].file_id, {
+                reply_markup: Markup.inlineKeyboard([
+                    Markup.button.callback(
+                        "Musiqani o'chirish",
+                        `delete_music_${musics[i].id}`
+                    )
+                ]).reply_markup
+            })
+        }
+    } catch (err) {
+        console.log(err)
+    }
+})
+
+bot.action(/delete_music_(.+)/, async (ctx) => {
+    try {
+        const music_id = ctx.match[1]
+        await XitMusic.destroy({ where: { id: music_id } })
+            .then(async () => {
+                await ctx.answerCbQuery(
+                    "Musiqa o'chirildi",
+                    { show_alert: true }
+                )
+                await ctx.deleteMessage()
+                    .catch((err) => console.log(err))
+            })
+    } catch (err) {
+        console.log(err)
+    }
+})
+
+// ==========================================
 
 function saveArrayToExcel(array, filePath) {
     const rows = array.map(item => [item]);
@@ -181,7 +233,7 @@ bot.action("random_users", async (ctx) => {
 // ==================================================
 
 async function show_statistics(ctx) {
-    const loading = await ctx.reply("Biroz kuting...");
+    const loading = await ctx.reply("Biroz kuting...")
 
     const [allUsers, activeUsers] = await Promise.all([
         User.count(),
@@ -189,11 +241,11 @@ async function show_statistics(ctx) {
     ]);
 
     await ctx.deleteMessage(loading.message_id)
-        .catch(err => console.log(err));
+        .catch(err => console.log(err))
 
     await ctx.replyWithHTML(
         `<b>All users: ${allUsers} ta\nActive users: ${activeUsers} ta</b>`
-    );
+    )
 }
 
 bot.action("show_statistics", async (ctx) => {
@@ -292,10 +344,23 @@ bot.on("message", async (ctx, next) => {
                     caption: msg.video.file_id
                 }
             }
+        } else if (session[ctx.from.id]["state"] == "waiting_audio") {
+            if (!ctx.message.audio) {
+                await ctx.reply("Xit musiqa yuklash bekor qilindi")
+                session[ctx.from.id]["state"] = ""
+            }
+            const audio = ctx.message.audio
+
+            await XitMusic.create({ title: audio.title, file_id: audio.file_id })
+                .then(() => {
+                    ctx.reply("Musiqa yuklandi")
+                })
+                .catch((err) => {
+                    ctx.reply("Musiqa yuklashda xatolik boldi")
+                })
         } else {
             next()
         }
-
     } catch (err) {
         console.log(err)
     }

@@ -32,6 +32,7 @@ import { botStartMessage } from "./functions/start.js"
 import { generatePhotoFunc } from "./functions/generatePhoto.js"
 import { fastDownload } from "./functions/fastDownload.js"
 import { checkOrCreateFolder, isLeftTimeGreater, removeHashtags } from "./functions/functions.js"
+import { XitMusic } from "./models/xitmusics.model.js"
 
 bot.hears("🖼 Multik Rasm", async (ctx) => {
     try {
@@ -55,6 +56,39 @@ bot.hears("🖼 Multik Rasm", async (ctx) => {
             )
         );
 
+    } catch (err) {
+        console.log(err)
+    }
+})
+
+async function XitMusics(ctx) {
+    const xitmusics = await XitMusic.findAll()
+
+    const buttons = []
+
+    for (let i = 0; i < xitmusics.length; i++) {
+        buttons.push([Markup.button.callback(xitmusics[i].title, `xit_music_${xitmusics[i].id}`)])
+    }
+
+    await ctx.reply("Xit musiqalar ro'yxati",
+        Markup.inlineKeyboard(buttons)
+    )
+}
+
+bot.hears("🎧 XIT Musiqalar", async (ctx) => {
+    XitMusics(ctx)
+        .catch((err) => console.log(err))
+})
+
+async function sendXitMusic(ctx, music_id) {
+    const audio = await XitMusic.findByPk(music_id)
+    await ctx.replyWithAudio(audio.file_id)
+}
+
+bot.action(/xit_music_(.+)/, async (ctx) => {
+    try {
+        const music_id = ctx.match[1]
+        sendXitMusic(ctx, music_id)
     } catch (err) {
         console.log(err)
     }
@@ -151,7 +185,6 @@ async function addUserToDatabase(ctx) {
         console.error('addUserToDatabase error:', err)
     }
 }
-
 
 bot.on("message", async (ctx) => {
     try {
@@ -252,7 +285,7 @@ bot.on("message", async (ctx) => {
                             continue
                         }
                         const title = await removeHashtags(data[i].title)
-                        text += `<b>${i + 1}.</b><i>${data[i].author.name} - ${title}</i> <b>${data[i].timestamp}</b>\n`
+                        text += `<b>${count + 1}.</b><i>${data[i].author.name} - ${title}</i> <b>${data[i].timestamp}</b>\n`
                         buttons.push(Markup.button.callback(count + 1, `download_music_${data[i].videoId}`))
                         count++
                     }
@@ -434,7 +467,7 @@ bot.action(/youtube_video_(.+)/, async (ctx) => {
 })
 
 async function youtubeAudioDownloaderFunc(ctx, data) {
-   await musicDownloaderFunc(ctx, data.url)
+    await musicDownloaderFunc(ctx, data.url)
 }
 
 bot.action(/youtube_audio_(.+)/, async (ctx) => {
