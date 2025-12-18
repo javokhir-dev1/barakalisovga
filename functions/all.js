@@ -4,6 +4,8 @@ import https from 'https'
 import fs from "fs";
 import sharp from 'sharp'
 import { Video } from "../models/videos.model.js";
+import { checkOrCreateFolder } from "./functions.js";
+import { fastDownload } from "./fastDownload.js";
 
 export function downloadImage(url, path) {
     return new Promise((resolve, reject) => {
@@ -33,21 +35,41 @@ export async function createThumbnail(inputPath, outputPath) {
 export async function allVideoDownloaderFunc(ctx, message, loading) {
     const data = await allApi(message)
     await ctx.telegram.editMessageText(loading.chat.id, loading.message_id, null, "⏳ Yuklanmoqda...")
+        .catch((err) => console.log(err))
     const photo_name = uuidv4()
     try {
-        if (!fs.existsSync('photos')) fs.mkdirSync('photos');
+        console.log(data)
+        await checkOrCreateFolder("photos")
+            .catch((err) => console.log(err))
         await downloadImage(data.thumb, `photos/${photo_name}.jpg`)
-        await createThumbnail(`photos/${photo_name}.jpg`, `photos/${photo_name}2.jpg`);
-        const video_msg = await ctx.replyWithVideo(
-            { url: data.download_url },
-            {
-                caption: "📥 @barakalisovgalarbot orqali yuklandi!",
-                thumbnail: {
-                    source: `photos/${photo_name}2.jpg`
-                }
-            }
-        )
-        await Video.create({ file_id: video_msg.video.file_id.trim(), title: data.caption.split("\n")[0].trim(), url: message.trim(), type: "video" })
+            .catch((err) => console.log(err))
+        await createThumbnail(`photos/${photo_name}.jpg`, `photos/${photo_name}2.jpg`)
+            .catch((err) => console.log(err))
+
+        await checkOrCreateFolder("videos")
+            .catch((err) => console.log(err))
+            
+        const video_path = `videos/${uuidv4()}.mp4`
+        await fastDownload(data.download_url, video_path)
+            .then(async () => {
+                const video_msg = await ctx.replyWithVideo(
+                    { source: video_path },
+                    {
+                        caption: "📥 @barakalisovgalarbot orqali yuklandi!",
+                        thumbnail: {
+                            source: `photos/${photo_name}2.jpg`
+                        }
+                    }
+                )
+                await Video.create({ file_id: video_msg.video.file_id.trim(), title: data.caption.split("\n")[0].trim(), url: message.trim(), type: "video" })
+            })
+            .catch((err) => console.log(err))
+            .finally(() => {
+                fs.unlink(video_path, (err) => {
+                    if (err) console.error(err)
+                });
+            }) 
+            
     } catch (err) {
         console.log(err)
     } finally {
